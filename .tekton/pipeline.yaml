@@ -1,0 +1,43 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: tax-calculator-pipeline
+spec:
+  params:
+    - name: repo-url
+      type: string
+      default: https://github.com/TanuRana0207/zntwk-tax_calculator.git
+    - name: repo-revision
+      type: string
+      default: main
+  tasks:
+    - name: npm
+      taskRef:
+        name: npm
+      params:
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: repo-revision
+          value: $(params.repo-revision)
+
+    - name: jasmine
+      runAfter:
+        - npm
+      taskRef:
+        name: jasmine
+      params:
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: repo-revision
+          value: $(params.repo-revision)
+
+    - name: build-and-deploy
+      runAfter:
+        - jasmine
+      taskRef:
+        name: build-and-deploy
+      params:
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: repo-revision
+          value: $(params.repo-revision)
