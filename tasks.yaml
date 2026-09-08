@@ -1,0 +1,75 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: npm
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: repo-revision
+      type: string
+      default: main
+  steps:
+    - name: npm-install
+      image: node:18
+      script: |
+        #!/bin/sh
+        set -eu
+        rm -rf /tmp/src
+        git clone --depth 1 --branch "$(params.repo-revision)" "$(params.repo-url)" /tmp/src
+        cd /tmp/src
+        npm install
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: jasmine
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: repo-revision
+      type: string
+      default: main
+  steps:
+    - name: run-jasmine
+      image: node:18
+      script: |
+        #!/bin/sh
+        set -eu
+        rm -rf /tmp/src
+        git clone --depth 1 --branch "$(params.repo-revision)" "$(params.repo-url)" /tmp/src
+        cd /tmp/src
+        npm install
+        npx jasmine
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-and-deploy
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: repo-revision
+      type: string
+      default: main
+  steps:
+    - name: clone-source
+      image: alpine/git:2.45.2
+      script: |
+        #!/bin/sh
+        set -eu
+        rm -rf /workspace/src
+        git clone --depth 1 --branch "$(params.repo-revision)" "$(params.repo-url)" /workspace/src
+
+    - name: deploy
+      image: quay.io/openshift/origin-cli:latest
+      script: |
+        #!/bin/sh
+        set -eu
+        APP_NAME="tax-calculator"
+        cd /workspace/src
+        oc rollout status deployment/${APP_NAME} --timeout=600s
